@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bite — Food Delivery</title>
+<style>
+  :root {
+    --bg: #0f0e0d;
+    --surface: #1a1917;
+    --surface2: #242320;
+    --surface3: #2e2c29;
+    --border: #333230;
+    --text: #f0ede8;
+    --text-muted: #857f78;
+    --text-dim: #4a4742;
+    --accent: #e8622a;
+    --accent-dim: #7a2e0f;
+    --accent-text: #ffcfb8;
+    --green: #3ea66b;
+    --yellow: #f0a500;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  
+  /* ── Layout ── */
+  #app { max-width: 420px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+  .screen { display: none; flex: 1; flex-direction: column; animation: fadeIn .18s ease; }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Top Nav ── */
+  .topbar { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); }
+  .topbar-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 16px; position: relative; }
+  .badge { position: absolute; top: -3px; right: -3px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--bg); }
+
+  /* ── Bottom Tab Bar ── */
+  .tabbar { display: flex; border-top: 1px solid var(--border); background: var(--surface); padding: 8px 0 12px; flex-shrink: 0; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 0; }
+  .tab-icon { font-size: 20px; color: var(--text-dim); transition: color .15s; }
+  .tab-label { font-size: 10px; color: var(--text-dim); font-weight: 500; transition: color .15s; }
+  .tab.active .tab-icon, .tab.active .tab-label { color: var(--accent); }
+
+  /* ── Scroll areas ── */
+  .scrollable { flex: 1; overflow-y: auto; padding-bottom: 16px; }
+  .scrollable::-webkit-scrollbar { display: none; }
+
+  /* ── Cards & chips ── */
+  .chip { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); color: var(--text-muted); background: var(--surface2); transition: all .12s; white-space: nowrap; }
+  .chip.active { border-color: var(--accent); color: var(--accent-text); background: var(--accent-dim); }
+  .chip-row { display: flex; gap: 8px; padding: 0 20px 16px; overflow-x: auto; }
+  .chip-row::-webkit-scrollbar { display: none; }
+
+  /* ── Section headings ── */
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 20px; margin: 4px 0 12px; }
+  .section-title { font-size: 16px; font-weight: 600; }
+  .section-more { font-size: 13px; color: var(--accent); cursor: pointer; }
+
+  /* ── Hero search ── */
+  .hero { padding: 6px 20px 20px; }
+  .hero h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2; margin-bottom: 4px; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+  .search-bar { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
+  .search-bar input { flex: 1; background: none; border: none; outline: none; font-size: 14px; color: var(--text); font-family: var(--font); }
+  .search-bar input::placeholder { color: var(--text-dim); }
+  .search-icon { color: var(--text-dim); font-size: 16px; }
+
+  /* ── Restaurant cards (horizontal scroll) ── */
+  .horiz-scroll { display: flex; gap: 14px; padding: 0 20px 4px; overflow-x: auto; }
+  .horiz-scroll::-webkit-scrollbar { display: none; }
+  .rest-card-h { flex-shrink: 0; width: 190px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .12s; }
+  .rest-card-h:hover { transform: translateY(-2px); }
+  .rest-img-h { width: 100%; height: 110px; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+  .rest-info-h { padding: 10px 12px 12px; }
+  .rest-name-h { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .rest-meta { display: flex; gap: 10px; align-items: center; }
+  .rest-rating { font-size: 12px; color: var(--yellow); }
+  .rest-time { font-size: 12px; color: var(--text-muted); }
+  .rest-tag { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ── Restaurant list cards ── */
+  .rest-card { display: flex; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  .rest-card:hover { background: var(--surface); }
+  .rest-img { width: 72px; height: 72px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 30px; background: var(--surface2); flex-shrink: 0; }
+  .rest-details { flex: 1; }
+  .rest-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .rest-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .rest-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .pill.green { background: #0f2e1c; color: var(--green); border-color: #1a5232; }
+
+  /* ── Restaurant detail ── */
+  .rest-hero { height: 180px; display: flex; align-items: center; justify-content: center; font-size: 64px; background: var(--surface2); position: relative; }
+  .back-btn { position: absolute; top: 14px; left: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(15,14,13,.7); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; border: 1px solid var(--border); }
+  .rest-detail-info { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+  .rest-detail-name { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 6px; }
+  .rest-detail-meta { display: flex; gap: 16px; margin-bottom: 10px; }
+  .meta-item { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+
+  /* ── Menu items ── */
+  .menu-section { padding: 0 0 8px; }
+  .menu-section-title { font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 14px 20px 8px; letter-spacing: 0.3px; }
+  .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  .menu-item:hover { background: var(--surface); }
+  .menu-item-info { flex: 1; padding-right: 12px; }
+  .menu-item-name { font-size: 15px; font-weight: 500; margin-bottom: 3px; }
+  .menu-item-desc { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+  .menu-item-price { font-size: 15px; font-weight: 600; color: var(--accent); margin-top: 6px; }
+  .menu-item-img { width: 72px; height: 72px; border-radius: var(--radius-sm); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+  .add-btn { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: none; margin-top: 8px; flex-shrink: 0; transition: transform .1s; }
+  .add-btn:hover { transform: scale(1.1); }
+  .qty-ctrl { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .qty-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+  .qty-num { font-size: 14px; font-weight: 600; min-width: 18px; text-align: center; }
+
+  /* ── Cart bar ── */
+  .cart-bar { margin: 12px 20px; background: var(--accent); border-radius: var(--radius); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform .1s; }
+  .cart-bar:hover { transform: translateY(-1px); }
+  .cart-bar-left { font-size: 14px; font-weight: 600; }
+  .cart-bar-right { font-size: 15px; font-weight: 700; }
+  .cart-bar.hidden { display: none; }
+
+  /* ── Cart screen ── */
+  .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .cart-item-info { flex: 1; }
+  .cart-item-name { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .cart-item-price { font-size: 14px; color: var(--accent); }
+  .summary-row { display: flex; justify-content: space-between; padding: 10px 20px; font-size: 14px; color: var(--text-muted); }
+  .summary-row.total { font-size: 16px; font-weight: 700; color: var(--text); border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
+  .cta-btn { margin: 16px 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 16px; width: calc(100% - 40px); font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity .12s; font-family: var(--font); }
+  .cta-btn:hover { opacity: 0.9; }
+  .cta-btn.outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+
+  /* ── Order tracking ── */
+  .track-hero { padding: 24px 20px 16px; }
+  .track-status { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .track-sub { font-size: 14px; color: var(--text-muted); }
+  .track-steps { padding: 0 20px; }
+  .track-step { display: flex; gap: 14px; padding-bottom: 24px; position: relative; }
+  .track-step:last-child { padding-bottom: 0; }
+  .step-dot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative; z-index: 1; }
+  .step-dot.done { background: var(--green); color: #fff; }
+  .step-dot.active { background: var(--accent); color: #fff; }
+  .step-dot.pending { background: var(--surface2); border: 1.5px solid var(--border); color: var(--text-dim); }
+  .step-line { position: absolute; left: 13px; top: 28px; bottom: -20px; width: 2px; background: var(--border); }
+  .step-done-line { background: var(--green); }
+  .step-info { padding-top: 3px; }
+  .step-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .step-time { font-size: 13px; color: var(--text-muted); }
+  .map-placeholder { margin: 20px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+
+  /* ── Profile ── */
+  .profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--accent-dim); display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 12px; border: 2px solid var(--accent); }
+  .profile-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .profile-email { font-size: 14px; color: var(--text-muted); }
+  .menu-link { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  .menu-link:hover { background: var(--surface); }
+  .menu-link-left { display: flex; align-items: center; gap: 12px; font-size: 15px; }
+  .menu-link-icon { font-size: 20px; color: var(--text-muted); }
+  .menu-link-arrow { color: var(--text-dim); font-size: 16px; }
+  .stat-row { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); margin: 20px; overflow: hidden; }
+  .stat { flex: 1; padding: 14px; text-align: center; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-n { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .stat-l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── Empty state ── */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px 20px; color: var(--text-muted); text-align: center; }
+  .empty-icon { font-size: 48px; opacity: 0.6; }
+  .empty h3 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .empty p { font-size: 14px; line-height: 1.5; }
+
+  /* ── Promo banner ── */
+  .promo { margin: 4px 20px 16px; background: linear-gradient(110deg, #7a2e0f 0%, #e8622a 60%); border-radius: var(--radius); padding: 18px; position: relative; overflow: hidden; }
+  .promo-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .promo-sub { font-size: 13px; opacity: 0.85; margin-bottom: 12px; }
+  .promo-btn { display: inline-block; background: #fff; color: var(--accent); font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 20px; cursor: pointer; }
+  .promo-emoji { position: absolute; right: 18px; top: 14px; font-size: 48px; opacity: 0.3; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: all .2s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Location bar ── */
+  .loc-bar { display: flex; align-items: center; gap: 8px; padding: 6px 20px 14px; }
+  .loc-pin { font-size: 16px; color: var(--accent); }
+  .loc-text { font-size: 14px; font-weight: 500; }
+  .loc-arrow { font-size: 14px; color: var(--text-dim); margin-left: 2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── TOAST ── -->
+  <div id="toast"></div>
+
+  <!-- ══════════════════════════════════
+       SCREEN: HOME
+  ══════════════════════════════════ -->
+  <div class="screen active" id="screen-home">
+    <div class="topbar">
+      <div class="topbar-logo">bite.</div>
+      <div class="topbar-icon" onclick="goTo('cart')">
+        🛒
+        <div class="badge" id="cart-badge" style="display:none">0</div>
+      </div>
+    </div>
+
+    <div class="loc-bar">
+      <span class="loc-pin">📍</span>
+      <span class="loc-text">Pilot Point, TX</span>
+      <span class="loc-arrow">▾</span>
+    </div>
+
+    <div class="scrollable">
+      <div class="hero">
+        <h1>Hungry? <span>Order fast,</span><br>eat well.</h1>
+        <p>Top restaurants, delivered in 30 min.</p>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search restaurants or dishes…" oninput="handleSearch(this.value)" id="search-input">
+        </div>
+      </div>
+
+      <!-- Promo -->
+      <div class="promo">
+        <div class="promo-emoji">🍕</div>
+        <div class="promo-title">50% off your first order</div>
+        <div class="promo-sub">Use code BITE50 at checkout</div>
+        <div class="promo-btn">Claim offer</div>
+      </div>
+
+      <!-- Category chips -->
+      <div class="chip-row">
+        <div class="chip active" onclick="filterCategory('All', this)">All</div>
+        <div class="chip" onclick="filterCategory('Pizza', this)">🍕 Pizza</div>
+        <div class="chip" onclick="filterCategory('Burgers', this)">🍔 Burgers</div>
+        <div class="chip" onclick="filterCategory('Sushi', this)">🍣 Sushi</div>
+        <div class="chip" onclick="filterCategory('Indian', this)">🍛 Indian</div>
+        <div class="chip" onclick="filterCategory('Mexican', this)">🌮 Mexican</div>
+        <div class="chip" onclick="filterCategory('Salads', this)">🥗 Salads</div>
+      </div>
+
+      <!-- Featured -->
+      <div class="section-head">
+        <span class="section-title">Featured</span>
+        <span class="section-more">See all</span>
+      </div>
+      <div class="horiz-scroll" id="featured-scroll">
+        <!-- filled by JS -->
+      </div>
+
+      <!-- All restaurants -->
+      <div class="section-head" style="margin-top:16px">
+        <span class="section-title">All restaurants</span>
+        <span class="section-more" id="rest-count"></span>
+      </div>
+      <div id="rest-list">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SCREEN: RESTAURANT DETAIL
+  ══════════════════════════════════ -->
+  <div class="screen" id="screen-rest">
+    <div class="rest-hero" id="rest-hero-img">
+      <div class="back-btn" onclick="goTo('home')">←</div>
+      <span id="rest-hero-emoji" style="font-size:64px"></span>
+    </div>
+    <div class="rest-detail-info">
+      <div class="rest-detail-name" id="rest-detail-name"></div>
+      <div class="rest-detail-meta">
+        <div class="meta-item">⭐ <span id="rest-detail-rating"></span></div>
+        <div class="meta-item">🕐 <span id="rest-detail-time"></span></div>
+        <div class="meta-item">🛵 <span id="rest-detail-delivery"></span> delivery</div>
+      </div>
+    </div>
+    <div class="scrollable">
+      <div id="menu-container"></div>
+    </div>
+    <div class="cart-bar hidden" id="cart-bar" onclick="goTo('cart')">
+      <div class="cart-bar-left" id="cart-bar-left">View cart</div>
+      <div class="cart-bar-right" id="cart-bar-total"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SCREEN: CART
+  ══════════════════════════════════ -->
+  <div class="screen" id="screen-cart">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="history.back(); goBack()">
+        <span>←</span> <span style="font-size:16px;font-weight:600">Your cart</span>
+      </div>
+    </div>
+    <div class="scrollable" id="cart-screen-content">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SCREEN: TRACKING
+  ══════════════════════════════════ -->
+  <div class="screen" id="screen-track">
+    <div class="topbar">
+      <div style="font-size:16px;font-weight:600">Order tracking</div>
+      <div style="font-size:13px;color:var(--accent);cursor:pointer" onclick="showToast('Support chat opening…')">Help</div>
+    </div>
+    <div class="scrollable">
+      <div class="track-hero">
+        <div class="track-status" id="track-status">🍳 Preparing your food</div>
+        <div class="track-sub">Est. delivery: 28 min · Order #BT-2847</div>
+      </div>
+      <div class="track-steps">
+        <div class="track-step">
+          <div>
+            <div class="step-dot done">✓</div>
+            <div class="step-line step-done-line"></div>
+          </div>
+          <div class="step-info">
+            <div class="step-name">Order confirmed</div>
+            <div class="step-time">Just now</div>
+          </div>
+        </div>
+        <div class="track-step">
+          <div>
+            <div class="step-dot active">🔥</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-info">
+            <div class="step-name">Restaurant preparing</div>
+            <div class="step-time">~15 min remaining</div>
+          </div>
+        </div>
+        <div class="track-step">
+          <div>
+            <div class="step-dot pending">🛵</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-info">
+            <div class="step-name">Out for delivery</div>
+            <div class="step-time">Waiting…</div>
+          </div>
+        </div>
+        <div class="track-step">
+          <div>
+            <div class="step-dot pending">🏠</div>
+          </div>
+          <div class="step-info">
+            <div class="step-name">Delivered</div>
+            <div class="step-time">Waiting…</div>
+          </div>
+        </div>
+      </div>
+      <div class="map-placeholder">
+        <span style="font-size:32px">🗺️</span>
+        <span>Live map tracking</span>
+        <span style="font-size:11px">Powered by Mapbox (connected on deploy)</span>
+      </div>
+      <div class="section-head" style="margin-top:0">
+        <span class="section-title">Your order</span>
+      </div>
+      <div id="track-order-items"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SCREEN: PROFILE
+  ══════════════════════════════════ -->
+  <div class="screen" id="screen-profile">
+    <div class="topbar">
+      <div style="font-size:16px;font-weight:600">Account</div>
+      <div style="font-size:13px;color:var(--text-muted);cursor:pointer" onclick="showToast('Logged out')">Log out</div>
+    </div>
+    <div class="scrollable">
+      <div style="padding:24px 20px 0;display:flex;flex-direction:column;align-items:center;text-align:center;">
+        <div class="profile-avatar">😊</div>
+        <div class="profile-name">Vamsi A</div>
+        <div class="profile-email">vasanthavula8@gmail.com</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-n">14</div><div class="stat-l">Orders</div></div>
+        <div class="stat"><div class="stat-n">4.9</div><div class="stat-l">Rating</div></div>
+        <div class="stat"><div class="stat-n">$218</div><div class="stat-l">Total spent</div></div>
+      </div>
+      <div class="menu-link" onclick="showToast('Past orders →')">
+        <div class="menu-link-left"><span class="menu-link-icon">📋</span> Order history</div>
+        <span class="menu-link-arrow">›</span>
+      </div>
+      <div class="menu-link" onclick="showToast('Addresses →')">
+        <div class="menu-link-left"><span class="menu-link-icon">📍</span> Saved addresses</div>
+        <span class="menu-link-arrow">›</span>
+      </div>
+      <div class="menu-link" onclick="showToast('Payments →')">
+        <div class="menu-link-left"><span class="menu-link-icon">💳</span> Payment methods</div>
+        <span class="menu-link-arrow">›</span>
+      </div>
+      <div class="menu-link" onclick="showToast('Promos →')">
+        <div class="menu-link-left"><span class="menu-link-icon">🎁</span> Promo codes</div>
+        <span class="menu-link-arrow">›</span>
+      </div>
+      <div class="menu-link" onclick="showToast('Settings →')">
+        <div class="menu-link-left"><span class="menu-link-icon">⚙️</span> Settings</div>
+        <span class="menu-link-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       BOTTOM TAB BAR
+  ══════════════════════════════════ -->
+  <div class="tabbar" id="tabbar">
+    <div class="tab active" onclick="goTo('home')" id="tab-home">
+      <span class="tab-icon">🏠</span>
+      <span class="tab-label">Home</span>
+    </div>
+    <div class="tab" onclick="goTo('track')" id="tab-track">
+      <span class="tab-icon">🛵</span>
+      <span class="tab-label">Track</span>
+    </div>
+    <div class="tab" onclick="goTo('cart')" id="tab-cart">
+      <span class="tab-icon">🛒</span>
+      <span class="tab-label">Cart</span>
+    </div>
+    <div class="tab" onclick="goTo('profile')" id="tab-profile">
+      <span class="tab-icon">👤</span>
+      <span class="tab-label">Account</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const RESTAURANTS = [
+  {
+    id: 1, name: "Woodfire Pizza Co.", emoji: "🍕", category: "Pizza",
+    rating: 4.8, time: "22 min", delivery: "Free", tag: "Pizza · Italian · Pasta",
+    featured: true,
+    menu: [
+      { cat: "🔥 Popular", items: [
+        { id: 101, name: "Margherita", desc: "San Marzano tomato, fresh mozzarella, basil", price: 14.99, emoji: "🍕" },
+        { id: 102, name: "Pepperoni Classic", desc: "Double pepperoni, smoked mozzarella", price: 16.99, emoji: "🍕" },
+        { id: 103, name: "Truffle Mushroom", desc: "Wild mushrooms, truffle oil, fontina", price: 18.99, emoji: "🍕" },
+      ]},
+      { cat: "🥗 Sides", items: [
+        { id: 104, name: "Caesar salad", desc: "Romaine, croutons, parmesan dressing", price: 8.99, emoji: "🥗" },
+        { id: 105, name: "Garlic bread", desc: "Woodfire toasted, herb butter", price: 5.99, emoji: "🥖" },
+      ]},
+      { cat: "🍰 Desserts", items: [
+        { id: 106, name: "Tiramisu", desc: "House-made, espresso soaked", price: 7.99, emoji: "🍰" },
+      ]},
+    ]
+  },
+  {
+    id: 2, name: "Stack'd Burgers", emoji: "🍔", category: "Burgers",
+    rating: 4.6, time: "18 min", delivery: "$1.99", tag: "Burgers · American · Fries",
+    featured: true,
+    menu: [
+      { cat: "🔥 Popular", items: [
+        { id: 201, name: "Double Smash Burger", desc: "Two smashed patties, American cheese, pickles, sauce", price: 13.99, emoji: "🍔" },
+        { id: 202, name: "BBQ Bacon Stack", desc: "Beef patty, crispy bacon, cheddar, BBQ sauce", price: 15.99, emoji: "🍔" },
+        { id: 203, name: "Spicy Crispy Chicken", desc: "Buttermilk fried chicken, jalapeño mayo, slaw", price: 13.49, emoji: "🍗" },
+      ]},
+      { cat: "🍟 Sides", items: [
+        { id: 204, name: "Loaded fries", desc: "Crispy fries, cheese sauce, jalapeños, bacon", price: 7.49, emoji: "🍟" },
+        { id: 205, name: "Onion rings", desc: "Battered, golden fried", price: 5.99, emoji: "🧅" },
+      ]},
+    ]
+  },
+  {
+    id: 3, name: "Sakura Sushi", emoji: "🍣", category: "Sushi",
+    rating: 4.9, time: "35 min", delivery: "$2.49", tag: "Sushi · Japanese · Ramen",
+    featured: false,
+    menu: [
+      { cat: "🍱 Rolls", items: [
+        { id: 301, name: "Spicy Tuna Roll", desc: "Fresh tuna, cucumber, spicy mayo, sesame", price: 14.99, emoji: "🍣" },
+        { id: 302, name: "Dragon Roll", desc: "Shrimp tempura, avocado, eel sauce", price: 16.99, emoji: "🍣" },
+        { id: 303, name: "California Roll", desc: "Crab, avocado, cucumber", price: 12.99, emoji: "🍣" },
+      ]},
+      { cat: "🍜 Mains", items: [
+        { id: 304, name: "Tonkotsu Ramen", desc: "Rich pork broth, chashu, soft egg, nori", price: 15.99, emoji: "🍜" },
+        { id: 305, name: "Chicken Teriyaki", desc: "Grilled chicken, steamed rice, miso soup", price: 13.99, emoji: "🍱" },
+      ]},
+    ]
+  },
+  {
+    id: 4, name: "Spice Route", emoji: "🍛", category: "Indian",
+    rating: 4.7, time: "30 min", delivery: "Free", tag: "Indian · Curry · Naan",
+    featured: false,
+    menu: [
+      { cat: "🍛 Mains", items: [
+        { id: 401, name: "Butter Chicken", desc: "Creamy tomato gravy, tender chicken, basmati", price: 15.99, emoji: "🍛" },
+        { id: 402, name: "Lamb Biryani", desc: "Slow-cooked lamb, fragrant basmati, raita", price: 17.99, emoji: "🍛" },
+        { id: 403, name: "Paneer Tikka Masala", desc: "Grilled paneer, rich masala sauce, butter naan", price: 14.99, emoji: "🍛" },
+      ]},
+      { cat: "🫓 Breads & Sides", items: [
+        { id: 404, name: "Garlic Naan", desc: "Fresh from tandoor, garlic butter", price: 3.99, emoji: "🫓" },
+        { id: 405, name: "Mango Lassi", desc: "Fresh mango, yogurt, cardamom", price: 4.99, emoji: "🥭" },
+      ]},
+    ]
+  },
+  {
+    id: 5, name: "Taco Loco", emoji: "🌮", category: "Mexican",
+    rating: 4.5, time: "20 min", delivery: "$1.49", tag: "Mexican · Burritos · Quesadillas",
+    featured: true,
+    menu: [
+      { cat: "🌮 Tacos", items: [
+        { id: 501, name: "Al Pastor Tacos (3)", desc: "Marinated pork, pineapple, cilantro, onion", price: 11.99, emoji: "🌮" },
+        { id: 502, name: "Carne Asada Tacos (3)", desc: "Grilled steak, guac, pico de gallo", price: 13.99, emoji: "🌮" },
+      ]},
+      { cat: "🌯 Wraps & More", items: [
+        { id: 503, name: "Chicken Burrito", desc: "Grilled chicken, rice, beans, cheese, salsa", price: 12.99, emoji: "🌯" },
+        { id: 504, name: "Cheese Quesadilla", desc: "Three cheese blend, jalapeños, sour cream", price: 9.99, emoji: "🧀" },
+        { id: 505, name: "Chips & Guacamole", desc: "Fresh-made guac, tortilla chips", price: 6.99, emoji: "🥑" },
+      ]},
+    ]
+  },
+  {
+    id: 6, name: "Greens & Grains", emoji: "🥗", category: "Salads",
+    rating: 4.6, time: "15 min", delivery: "Free", tag: "Salads · Bowls · Healthy",
+    featured: false,
+    menu: [
+      { cat: "🥗 Salads", items: [
+        { id: 601, name: "The Harvest Bowl", desc: "Kale, roasted sweet potato, feta, lemon vinaigrette", price: 13.99, emoji: "🥗" },
+        { id: 602, name: "Greek Salad", desc: "Tomato, cucumber, olives, feta, red onion", price: 11.99, emoji: "🥗" },
+      ]},
+      { cat: "🍚 Grain Bowls", items: [
+        { id: 603, name: "Quinoa Power Bowl", desc: "Quinoa, chickpeas, roasted veggies, tahini", price: 14.99, emoji: "🥙" },
+        { id: 604, name: "Brown Rice & Salmon", desc: "Seared salmon, edamame, sesame-ginger dressing", price: 16.99, emoji: "🐟" },
+      ]},
+    ]
+  },
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────
+let cart = {}; // { itemId: { item, qty, restId } }
+let currentRestId = null;
+let prevScreen = 'home';
+let activeCategory = 'All';
+let searchQuery = '';
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const el = document.getElementById('screen-' + screen);
+  if (el) el.classList.add('active');
+  const tab = document.getElementById('tab-' + screen);
+  if (tab) tab.classList.add('active');
+  if (screen === 'cart') renderCart();
+  if (screen === 'track') renderTrack();
+  prevScreen = screen;
+}
+
+function goBack() { goTo(prevScreen === 'rest' ? 'home' : 'home'); }
+
+// ── HOME ─────────────────────────────────────────────────────────────────
+function renderHome() {
+  renderFeatured();
+  renderRestList();
+  updateCartBadge();
+}
+
+function renderFeatured() {
+  const featured = RESTAURANTS.filter(r => r.featured);
+  const el = document.getElementById('featured-scroll');
+  el.innerHTML = featured.map(r => `
+    <div class="rest-card-h" onclick="openRest(${r.id})">
+      <div class="rest-img-h">${r.emoji}</div>
+      <div class="rest-info-h">
+        <div class="rest-name-h">${r.name}</div>
+        <div class="rest-meta">
+          <span class="rest-rating">⭐ ${r.rating}</span>
+          <span class="rest-time">🕐 ${r.time}</span>
+        </div>
+        <div class="rest-tag">${r.category}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRestList() {
+  let filtered = RESTAURANTS;
+  if (activeCategory !== 'All') filtered = filtered.filter(r => r.category === activeCategory);
+  if (searchQuery) filtered = filtered.filter(r =>
+    r.name.toLowerCase().includes(searchQuery) || r.tag.toLowerCase().includes(searchQuery)
+  );
+
+  document.getElementById('rest-count').textContent = filtered.length + ' results';
+  const el = document.getElementById('rest-list');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>No results</h3><p>Try a different search or category.</p></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(r => `
+    <div class="rest-card" onclick="openRest(${r.id})">
+      <div class="rest-img">${r.emoji}</div>
+      <div class="rest-details">
+        <div class="rest-name">${r.name}</div>
+        <div class="rest-sub">${r.tag}</div>
+        <div class="rest-pills">
+          <span class="pill">⭐ ${r.rating}</span>
+          <span class="pill">🕐 ${r.time}</span>
+          <span class="pill ${r.delivery === 'Free' ? 'green' : ''}">${r.delivery === 'Free' ? '🟢 Free delivery' : '🛵 ' + r.delivery}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterCategory(cat, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  activeCategory = cat;
+  renderRestList();
+}
+
+function handleSearch(val) {
+  searchQuery = val.toLowerCase();
+  renderRestList();
+}
+
+// ── RESTAURANT DETAIL ────────────────────────────────────────────────────
+function openRest(id) {
+  const r = RESTAURANTS.find(x => x.id === id);
+  currentRestId = id;
+  document.getElementById('rest-hero-emoji').textContent = r.emoji;
+  document.getElementById('rest-detail-name').textContent = r.name;
+  document.getElementById('rest-detail-rating').textContent = r.rating;
+  document.getElementById('rest-detail-time').textContent = r.time;
+  document.getElementById('rest-detail-delivery').textContent = r.delivery;
+
+  const menu = document.getElementById('menu-container');
+  menu.innerHTML = r.menu.map(section => `
+    <div class="menu-section">
+      <div class="menu-section-title">${section.cat}</div>
+      ${section.items.map(item => buildMenuItem(item)).join('')}
+    </div>
+  `).join('');
+
+  updateCartBar();
+  goTo('rest');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+}
+
+function buildMenuItem(item) {
+  const cartItem = cart[item.id];
+  const qty = cartItem ? cartItem.qty : 0;
+  const qtyCtrl = qty > 0
+    ? `<div class="qty-ctrl">
+        <div class="qty-btn" onclick="changeQty(${item.id}, -1, event)">−</div>
+        <span class="qty-num">${qty}</span>
+        <div class="qty-btn" onclick="changeQty(${item.id}, 1, event)">${qty > 0 ? '+' : '+'}</div>
+       </div>`
+    : `<button class="add-btn" onclick="addToCart(${item.id}, event)">+</button>`;
+
+  return `
+    <div class="menu-item" id="mi-${item.id}">
+      <div class="menu-item-info">
+        <div class="menu-item-name">${item.name}</div>
+        <div class="menu-item-desc">${item.desc}</div>
+        <div class="menu-item-price">$${item.price.toFixed(2)}</div>
+        ${qtyCtrl}
+      </div>
+      <div class="menu-item-img">${item.emoji}</div>
+    </div>`;
+}
+
+function findItem(id) {
+  for (const r of RESTAURANTS) for (const s of r.menu) for (const item of s.items) if (item.id === id) return { item, restId: r.id };
+  return null;
+}
+
+function addToCart(id, e) {
+  e && e.stopPropagation();
+  const found = findItem(id);
+  if (!found) return;
+  // Check if adding from a different restaurant
+  const cartRests = Object.values(cart).map(c => c.restId);
+  if (cartRests.length && !cartRests.includes(found.restId)) {
+    if (!confirm('Your cart has items from another restaurant. Clear and start fresh?')) return;
+    cart = {};
+  }
+  if (!cart[id]) cart[id] = { item: found.item, qty: 0, restId: found.restId };
+  cart[id].qty++;
+  refreshMenuItem(id);
+  updateCartBar();
+  updateCartBadge();
+  showToast('Added to cart 🛒');
+}
+
+function changeQty(id, delta, e) {
+  e && e.stopPropagation();
+  if (!cart[id]) return;
+  cart[id].qty += delta;
+  if (cart[id].qty <= 0) delete cart[id];
+  refreshMenuItem(id);
+  updateCartBar();
+  updateCartBadge();
+}
+
+function refreshMenuItem(id) {
+  const found = findItem(id);
+  if (!found) return;
+  const el = document.getElementById('mi-' + id);
+  if (!el) return;
+  el.outerHTML = buildMenuItem(found.item);
+}
+
+function cartTotal() {
+  return Object.values(cart).reduce((s, c) => s + c.item.price * c.qty, 0);
+}
+
+function cartCount() {
+  return Object.values(cart).reduce((s, c) => s + c.qty, 0);
+}
+
+function updateCartBar() {
+  const bar = document.getElementById('cart-bar');
+  const count = cartCount();
+  if (count === 0) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  document.getElementById('cart-bar-left').textContent = `${count} item${count !== 1 ? 's' : ''} in cart`;
+  document.getElementById('cart-bar-total').textContent = '$' + cartTotal().toFixed(2);
+}
+
+function updateCartBadge() {
+  const count = cartCount();
+  const badge = document.getElementById('cart-badge');
+  badge.style.display = count > 0 ? 'flex' : 'none';
+  badge.textContent = count;
+}
+
+// ── CART SCREEN ──────────────────────────────────────────────────────────
+function renderCart() {
+  const el = document.getElementById('cart-screen-content');
+  const items = Object.values(cart);
+  if (!items.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>Your cart is empty</h3><p>Add items from a restaurant to get started.</p><button class="cta-btn" onclick="goTo('home')">Browse restaurants</button></div>`;
+    return;
+  }
+  const subtotal = cartTotal();
+  const delivery = subtotal > 30 ? 0 : 2.99;
+  const tax = subtotal * 0.08;
+  const total = subtotal + delivery + tax;
+  const restId = items[0].restId;
+  const rest = RESTAURANTS.find(r => r.id === restId);
+
+  el.innerHTML = `
+    <div style="padding:8px 20px 4px;font-size:13px;color:var(--text-muted)">From <strong style="color:var(--text)">${rest.name}</strong></div>
+    ${items.map(c => `
+      <div class="cart-item">
+        <div class="cart-item-info">
+          <div class="cart-item-name">${c.item.emoji} ${c.item.name}</div>
+          <div class="cart-item-price">$${(c.item.price * c.qty).toFixed(2)}</div>
+        </div>
+        <div class="qty-ctrl">
+          <div class="qty-btn" onclick="cartChangeQty(${c.item.id}, -1)">−</div>
+          <span class="qty-num">${c.qty}</span>
+          <div class="qty-btn" onclick="cartChangeQty(${c.item.id}, 1)">+</div>
+        </div>
+      </div>
+    `).join('')}
+    <div class="summary-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+    <div class="summary-row"><span>Delivery fee</span><span>${delivery === 0 ? '🟢 Free' : '$' + delivery.toFixed(2)}</span></div>
+    <div class="summary-row"><span>Tax (8%)</span><span>$${tax.toFixed(2)}</span></div>
+    <div class="summary-row total"><span>Total</span><span>$${total.toFixed(2)}</span></div>
+    <div style="padding:12px 20px 0;font-size:13px;color:var(--text-muted)">📍 Deliver to: Pilot Point, TX</div>
+    <button class="cta-btn" onclick="placeOrder()">Place order · $${total.toFixed(2)}</button>
+    <button class="cta-btn outline" onclick="goTo('home')">Add more items</button>
+    <div style="height:16px"></div>
+  `;
+}
+
+function cartChangeQty(id, delta) {
+  if (!cart[id]) return;
+  cart[id].qty += delta;
+  if (cart[id].qty <= 0) delete cart[id];
+  updateCartBadge();
+  renderCart();
+}
+
+function placeOrder() {
+  const items = Object.values(cart);
+  if (!items.length) return;
+  showToast('Order placed! 🎉 Tracking your delivery…');
+  setTimeout(() => goTo('track'), 800);
+}
+
+// ── TRACKING ─────────────────────────────────────────────────────────────
+function renderTrack() {
+  const items = Object.values(cart);
+  const el = document.getElementById('track-order-items');
+  if (!items.length) {
+    el.innerHTML = `<div style="padding:16px 20px;font-size:14px;color:var(--text-muted)">No active order.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(c => `
+    <div class="summary-row"><span>${c.item.emoji} ${c.item.name} ×${c.qty}</span><span>$${(c.item.price * c.qty).toFixed(2)}</span></div>
+  `).join('');
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
+
+<!-- ── API CONFIG (update BITE_API_URL before deploying) ── -->
+<script>
+// Set this to your Railway backend URL after deploying
+// e.g. 'https://bite-backend-production.up.railway.app'
+const BITE_API_URL = window.BITE_API_URL || '';
+
+// Thin wrapper around fetch for the Bite API
+async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem('bite_token');
+  const res = await fetch(BITE_API_URL + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || 'Request failed');
+  }
+  return res.json();
+}
+
+// Usage examples (called from your app logic):
+// const restaurants = await apiFetch('/api/restaurants?category=Pizza');
+// const order = await apiFetch('/api/orders', { method: 'POST', body: JSON.stringify({...}) });
+// const { token } = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+// localStorage.setItem('bite_token', token);
+</script>
