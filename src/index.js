@@ -18,6 +18,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+app.set('trust proxy', 1);
 app.use(express.json());
 
 // Rate limiting — 100 requests per 15 min per IP
