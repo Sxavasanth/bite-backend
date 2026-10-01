@@ -8,14 +8,11 @@ const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 
 const mailer = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD,
   },
-  tls: { rejectUnauthorized: false },
 });
 
 function sign(user) {
